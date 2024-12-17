@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jejak Cahaya - Kembang Api</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #controls {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      color: white;
+      background: #ff0040;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background: #ff2a6a;
+    }
+
+    #messageContainer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      font-weight: bold;
+      color: white;
+      text-align: center;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="lightTrail"></canvas>
+  <div id="controls">
+    <button id="fireworkButton">Petasan Tahun Baru</button>
+    <button id="fasterButton">Percepat Petasan</button>
+    <button id="slowerButton">Perlambat Petasan</button>
+    <button id="changeColorButton">Ganti Warna Tulisan</button>
+    <button id="randomFireworkButton">Petasan Acak</button>
+    <button id="autoRandomFireworkButton">Petasan Acak Otomatis</button>
+    <button id="increaseRandomFireworkButton">Perbanyak Petasan Acak</button>
+    <button id="showMessageButton">Tampilkan Pesan Tahun Baru</button>
+  </div>
+
+  <div id="messageContainer"></div>
+
+  <script>
+    const canvas = document.getElementById('lightTrail');
+    const ctx = canvas.getContext('2d');
+    const messageContainer = document.getElementById('messageContainer');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particles = [];
+    const clouds = [];
+    const colors = ['#ff0040', '#00ffff', '#ffae00', '#a020f0', '#00ff00'];
+
+    let fireworkSpeed = 50;
+    let messageColor = 'white';
+    let randomFireworksInterval = 1000;
+    let autoFireworkInterval;
+    let messageVisible = false; // Toggle state for the message
+
+    class Particle {
+      constructor(x, y, speedX, speedY, size, color) {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.color = color;
+        this.speedX = speedX;
+        this.speedY = speedY;
+        this.opacity = 1;
+      }
+
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        this.size *= 0.96;
+        this.opacity -= 0.02;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.hexToRgb(this.color)}, ${this.opacity})`;
+        ctx.fill();
+      }
+
+      hexToRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `${r},${g},${b}`;
+      }
+    }
+
+    class Cloud {
+      constructor(x, y, width, height, speed) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.speed = speed;
+      }
+
+      update() {
+        this.x += this.speed;
+        if (this.x > canvas.width) this.x = -this.width;
+      }
+
+      draw() {
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y, this.width, this.height, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function createClouds() {
+      for (let i = 0; i < 3; i++) {
+        clouds.push(new Cloud(Math.random() * canvas.width, Math.random() * canvas.height / 2, Math.random() * 100 + 50, Math.random() * 30 + 20, Math.random() * 2 + 0.5));
+      }
+    }
+
+    function drawClouds() {
+      clouds.forEach(cloud => {
+        cloud.update();
+        cloud.draw();
+      });
+    }
+
+    function handleParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        particles[i].draw();
+        if (particles[i].size < 0.5 || particles[i].opacity <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      // Tampilkan pesan jika semua partikel habis
+      if (particles.length === 0 && messageVisible === false) {
+        showNewYearMessage();
+      }
+    }
+
+    function createFirework(x, y) {
+      for (let i = 0; i < 100; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 3 + 1;
+        const speedX = Math.cos(angle) * speed;
+        const speedY = Math.sin(angle) * speed;
+        particles.push(new Particle(x, y, speedX, speedY, Math.random() * 5 + 2, colors[Math.floor(Math.random() * colors.length)]));
+      }
+    }
+
+    document.getElementById('fireworkButton').addEventListener('click', () => {
+      const x = canvas.width / 2;
+      const y = canvas.height;
+
+      for (let i = 0; i < 50; i++) {
+        setTimeout(() => createFirework(x, canvas.height - i * 15), i * fireworkSpeed);
+      }
+
+      setTimeout(() => {
+        showNewYearMessage();
+      }, 50 * fireworkSpeed);
+    });
+
+    document.getElementById('fasterButton').addEventListener('click', () => {
+      fireworkSpeed = Math.max(10, fireworkSpeed - 10);
+    });
+
+    document.getElementById('slowerButton').addEventListener('click', () => {
+      fireworkSpeed += 10;
+    });
+
+    document.getElementById('changeColorButton').addEventListener('click', () => {
+      messageColor = `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`;
+    });
+
+    document.getElementById('randomFireworkButton').addEventListener('click', () => {
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => createFirework(Math.random() * canvas.width, Math.random() * canvas.height), i * 100);
+      }
+    });
+
+    document.getElementById('autoRandomFireworkButton').addEventListener('click', () => {
+      if (!autoFireworkInterval) {
+        autoFireworkInterval = setInterval(() => {
+          createFirework(Math.random() * canvas.width, Math.random() * canvas.height);
+        }, randomFireworksInterval);
+      }
+    });
+
+    document.getElementById('increaseRandomFireworkButton').addEventListener('click', () => {
+      randomFireworksInterval = Math.max(100, randomFireworksInterval - 100);
+    });
+
+    document.getElementById('showMessageButton').addEventListener('click', () => {
+      toggleMessage();
+    });
+
+    function toggleMessage() {
+      if (messageVisible) {
+        messageContainer.textContent = '';
+        messageVisible = false;
+      } else {
+        messageContainer.textContent = 'Selamat Tahun Baru 2025!';
+        messageContainer.style.color = messageColor;
+        messageVisible = true;
+      }
+    }
+
+    function showNewYearMessage() {
+      messageContainer.textContent = 'Selamat Tahun Baru 2025!';
+      messageContainer.style.color = messageColor;
+      messageVisible = true;
+    }
+
+    function createRandomTrail() {
+      for (let j = 0; j < 5; j++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        for (let i = 0; i < 3; i++) {
+          particles.push(new Particle(x, y, Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 3 + 1, colors[Math.floor(Math.random() * colors.length)]));
+        }
+      }
+    }
+
+    setInterval(createRandomTrail, 500);
+
+    canvas.addEventListener('mousemove', (event) => {
+      for (let i = 0; i < 10; i++) {
+        particles.push(new Particle(event.x, event.y, Math.random() * 3 - 1.5, Math.random() * 3 - 1.5, Math.random() * 5 + 1, colors[Math.floor(Math.random() * colors.length)]));
+      }
+    });
+
+    function animate() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawClouds();
+      handleParticles();
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    createClouds();
+    animate();
+  </script>
+</body>
+</html>
